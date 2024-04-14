@@ -4,6 +4,8 @@
 
 - **Capítulo 1.**
   [Un primer vistazo al nuevo Rest Client en Spring Boot 3.2](https://www.youtube.com/watch?v=UDNrJAvKc0k&t=411s)
+- **Capítulo 2.**
+  [Spring Boot Rest Client: cómo probar llamadas HTTP usando @RestClientTest](https://www.youtube.com/watch?v=jhhi03AIin4&t=632s)
 
 **Enlaces relacionados**
 
@@ -258,3 +260,123 @@ $ curl -v -X DELETE http://localhost:8080/api/v1/posts/5 | jq
 >
 < HTTP/1.1 204
 ````
+
+---
+
+# Capítulo 2
+
+# [Spring Boot Rest Client: cómo probar llamadas HTTP usando @RestClientTest](https://www.youtube.com/watch?v=jhhi03AIin4&t=632s)
+
+Tutorial tomado del canal de **youtube de Dan Vega**.
+
+En este tutorial, aprenderá cómo probar las llamadas de `Rest Client` en `Spring Boot` usando la anotación
+`@RestClientTest`.
+
+---
+
+Recordemos que en el **capítulo 1** habíamos creado la clase de servicio **PostService** que está usando el
+`RestClient`, pues en este capítulo vamos a probar dicho servicio.
+
+Para la realización de este test, podríamos usar directamente la clase de servicio `PostService` quien usa en su
+interior `RestClient`. Al hacerlo, utilizaríamos el `RestClient` real para hacer la llamada al endpoint público.
+Eso está bien, puede ser exactamente lo que estamos tratando de hacer.
+
+En nuestro caso, queremos escribir una prueba que no asuma que el endpoint está disponible, es decir, puede que esté
+inactivo, o tal vez aún no se ha implementado.
+
+En resumen, solo queremos escribir una prueba en la que mockearemos el servicio para que el `RestClient` no haga las
+llamadas reales, sino más bien, simulemos dichas llamadas configurándole los datos que esperamos recibir.
+
+````java
+
+@RestClientTest(PostService.class)
+class PostServiceTest {
+
+    @Autowired
+    MockRestServiceServer server;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    PostService postService;
+
+    @Test
+    void findAllPosts() throws JsonProcessingException {
+        // given
+        List<Post> data = List.of(
+                new Post(1, 1, "Hello, World!", "This is my first posts!"),
+                new Post(2, 1, "Testing Rest Client with @RestClientTest", "This is a post"));
+
+        // when
+        // Cada vez que se llame a esta url en particular, mockearemos la respuesta con nuestros propios datos
+        this.server.expect(MockRestRequestMatchers.requestTo("https://jsonplaceholder.typicode.com/posts"))
+                .andRespond(MockRestResponseCreators.withSuccess(this.objectMapper.writeValueAsString(data), MediaType.APPLICATION_JSON));
+        List<Post> posts = this.postService.findAllPosts();
+
+        // then
+        Assertions.assertThat(posts.size()).isEqualTo(2);
+    }
+}
+````
+
+**DONDE**
+
+- `@RestClientTest(PostService.class)`, dentro de la anotación colocamos la clase que vamos a probar. La
+  anotación `@RestClientTest`, es una anotación para una prueba de cliente Spring Rest que se centra solo en beans que
+  usan  `RestTemplateBuilder` o `RestClient.Builder`.  
+  El uso de esta anotación deshabilitará la configuración automática completa y, en su lugar, aplicará solo la
+  configuración relevante para las pruebas del cliente rest **(es decir, la configuración automática de Jackson o
+  GSON y los beans @JsonComponent, pero no los beans @Component normales).**
+  De forma predeterminada, las pruebas anotadas con `RestClientTest` también configurarán automáticamente un
+  `MockRestServiceServer`.
+
+
+- `MockRestServiceServer`, punto de entrada principal para las pruebas REST del lado del cliente. Se utiliza para
+  pruebas que implican el uso directo o indirecto de RestTemplate. **Proporciona una forma de configurar las solicitudes
+  esperadas que se realizarán a través de RestTemplate, así como respuestas simuladas para
+  enviar, `eliminando así la necesidad de un servidor real`.**
+
+## Probando test
+
+Podemos ejecutar el test utilizando el mismo IDE de IntelliJ IDEA, pero en mi caso lo haré usando la línea de comando:
+
+````bash
+$ M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\02.youtube\15.dan_vega\spring-boot-rest-client (main -> origin)
+λ mvn test
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ---------------< dev.magadiflo:spring-boot-rest-client >----------------
+[INFO]....
+..........
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2024-04-14T12:59:22.748-05:00  INFO 112 --- [spring-boot-rest-client] [           main] d.m.restclient.app.post.PostServiceTest  : Starting PostServiceTest using Java 21.0.1 with PID 112 (started by USUARIO in M:\PROGRAMACION\DESARROLLO_JAVA_SPRING\02.youtube\15.dan_vega\spring-boot-rest-client)
+2024-04-14T12:59:22.751-05:00  INFO 112 --- [spring-boot-rest-client] [           main] d.m.restclient.app.post.PostServiceTest  : No active profile set, falling back to 1 default profile: "default"
+2024-04-14T12:59:23.834-05:00  INFO 112 --- [spring-boot-rest-client] [           main] d.m.restclient.app.post.PostServiceTest  : Started PostServiceTest in 1.899 seconds (process running for 3.855)
+WARNING: A Java agent has been loaded dynamically (C:\Users\USUARIO\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.12\byte-buddy-agent-1.14.12.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.435 s -- in dev.magadiflo.restclient.app.post.PostServiceTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.505 s
+[INFO] Finished at: 2024-04-14T12:59:25-05:00
+[INFO] ------------------------------------------------------------------------
+````
+
