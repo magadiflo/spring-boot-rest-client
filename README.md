@@ -74,6 +74,29 @@ public class PostController {
     public ResponseEntity<List<Post>> findAllPosts() {
         return ResponseEntity.ok(this.postService.findAllPosts());
     }
+
+    @GetMapping(path = "/{id}")
+    public ResponseEntity<Post> findPost(@PathVariable Integer id) {
+        return ResponseEntity.ok(this.postService.findById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<Post> createPost(@RequestBody Post post) {
+        Post postDB = this.postService.createPost(post);
+        URI uri = URI.create("/api/v1/posts/" + postDB.id());
+        return ResponseEntity.created(uri).body(postDB);
+    }
+
+    @PutMapping(path = "/{id}")
+    public ResponseEntity<Post> updatePost(@RequestBody Post post, @PathVariable Integer id) {
+        return ResponseEntity.ok(this.postService.updatePost(post, id));
+    }
+
+    @DeleteMapping(path = "/{id}")
+    public ResponseEntity<Void> deletePost(@PathVariable Integer id) {
+        this.postService.deletePost(id);
+        return ResponseEntity.noContent().build();
+    }
 }
 ````
 
@@ -102,10 +125,44 @@ public class PostService {
                 .body(new ParameterizedTypeReference<>() {
                 });
     }
+
+    public Post findById(Integer id) {
+        return this.restClient.get()
+                .uri("/posts/{id}", id)
+                .retrieve()
+                .body(Post.class);
+    }
+
+    public Post createPost(Post post) {
+        return this.restClient.post()
+                .uri("/posts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(post)
+                .retrieve()
+                .body(Post.class);
+    }
+
+    public Post updatePost(Post post, Integer id) {
+        return this.restClient.put()
+                .uri("/posts/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(post)
+                .retrieve()
+                .body(Post.class);
+    }
+
+    public void deletePost(Integer id) {
+        this.restClient.delete()
+                .uri("/posts/{id}", id)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }
 ````
 
-## Probando Listar Posts
+## Probando endpoints
+
+- Listar Posts
 
 ````bash
 $ curl -v http://localhost:8080/api/v1/posts | jq
@@ -127,4 +184,55 @@ $ curl -v http://localhost:8080/api/v1/posts | jq
     "body": "cupiditate quo est a modi nesciunt soluta\nipsa voluptas error itaque dicta in\nautem qui minus magnam et distinctio eum\naccusamus ratione error aut"
   }
 ]
+````
+
+- Buscar post por id
+
+````bash
+$ curl -v http://localhost:8080/api/v1/posts/5 | jq
+>
+< HTTP/1.1 200
+{
+  "id": 5,
+  "userId": 1,
+  "title": "nesciunt quas odio",
+  "body": "repudiandae veniam quaerat sunt sed\nalias aut fugiat sit autem sed est\nvoluptatem omnis possimus esse voluptatibus quis\nest aut tenetur dolor neque"
+}
+````
+
+- Crear un post
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"userId\": 1, \"title\": \"Spring Boot con Rest Client\", \"body\": \"Nueva caracteristica\"}" http://localhost:8080/api/v1/posts | jq
+>
+< HTTP/1.1 201
+<
+{
+  "id": 101,
+  "userId": 1,
+  "title": "Spring Boot con Rest Client",
+  "body": "Nueva caracteristica"
+}
+````
+
+- Actualizar post
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -d "{\"id\": 1, \"userId\": 1, \"title\": \"Spring Boot con Rest Client\", \"body\": \"Nueva caracteristica\"}" http://localhost:8080/api/v1/posts/1 | jq
+< HTTP/1.1 200
+<
+{
+  "id": 1,
+  "userId": 1,
+  "title": "Spring Boot con Rest Client",
+  "body": "Nueva caracteristica"
+}
+````
+
+- Eliminar post
+
+````bash
+$ curl -v -X DELETE http://localhost:8080/api/v1/posts/5 | jq
+>
+< HTTP/1.1 204
 ````
